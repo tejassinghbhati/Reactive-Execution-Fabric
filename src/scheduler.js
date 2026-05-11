@@ -20,9 +20,10 @@
 require('dotenv').config();
 const cron             = require('node-cron');
 const path             = require('path');
-const jobStore         = require('./jobStore');
-const conditionMonitor = require('./conditionMonitor');
-const notifier         = require('./notifier');
+const jobStore                   = require('./jobStore');
+const { countJobs }              = jobStore;
+const conditionMonitor           = require('./conditionMonitor');
+const notifier                   = require('./notifier');
 
 // ── Agent Execution Pipeline ──────────────────────────────────────────────────
 const AGENT_PATH = path.resolve(__dirname, '../../../Agent Execution Pipeline/src/agent');
@@ -156,17 +157,21 @@ function removeJob(jobId) {
  */
 function start() {
   log.info('Starting Reactive Execution Fabric...');
+
+  const counts = countJobs();
+  log.info(`Job store: ${counts.total} total, ${counts.enabled} enabled, ${counts.disabled} disabled.`);
+
   const jobs = jobStore.listEnabledJobs();
 
   if (jobs.length === 0) {
-    log.info('No enabled jobs found. Add jobs via CLI: node cli.js schedule --help');
+    log.info('No enabled jobs found. Add jobs with: node cli.js schedule --help');
   }
 
   for (const job of jobs) {
     scheduleJob(job);
   }
 
-  log.info(`Fabric is alive. ${jobs.length} job(s) scheduled. Press Ctrl+C to stop.`);
+  log.info(`Fabric is alive. ${jobs.length} cron task(s) registered. Waiting for next tick...`);
 }
 
 /**
@@ -214,4 +219,12 @@ async function triggerNow(jobId) {
   await fireJob(job);
 }
 
-module.exports = { start, stop, reloadJobs, scheduleJob, removeJob, triggerNow };
+/**
+ * Return the number of currently active (registered) cron tasks.
+ * @returns {number}
+ */
+function activeCount() {
+  return activeTasks.size;
+}
+
+module.exports = { start, stop, reloadJobs, scheduleJob, removeJob, triggerNow, activeCount };
