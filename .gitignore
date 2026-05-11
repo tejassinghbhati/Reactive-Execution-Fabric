@@ -1,4 +1,16 @@
+# Dependencies
 node_modules/
+
+# Runtime database (auto-created; never commit job state)
 data/
+
+# Local environment — contains API keys, never commit
 .env
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS artifacts
+.DS_Store
+Thumbs.db
