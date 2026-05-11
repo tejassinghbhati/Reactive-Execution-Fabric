@@ -28,6 +28,10 @@ const db = new Database(DB_PATH);
 // Enable WAL mode for better concurrent read performance
 db.pragma('journal_mode = WAL');
 
+// Schema version — increment when DDL changes to support future migrations
+const SCHEMA_VERSION = 1;
+db.pragma(`user_version = ${SCHEMA_VERSION}`);
+
 // ── Schema ────────────────────────────────────────────────────────────────────
 db.exec(`
   CREATE TABLE IF NOT EXISTS jobs (
@@ -141,6 +145,26 @@ function listEnabledJobs() {
 }
 
 /**
+ * Find a job by its human-readable name (case-insensitive, first match).
+ * @param {string} name
+ * @returns {object|null}
+ */
+function findJobByName(name) {
+  const lower = name.toLowerCase();
+  return listJobs().find(j => j.name.toLowerCase() === lower) || null;
+}
+
+/**
+ * Return the total number of jobs in the database.
+ * @returns {{ total: number, enabled: number, disabled: number }}
+ */
+function countJobs() {
+  const all     = listJobs();
+  const enabled = all.filter(j => j.enabled === 1).length;
+  return { total: all.length, enabled, disabled: all.length - enabled };
+}
+
+/**
  * Patch a job's fields. Only supplied fields are updated.
  * @param {string} id
  * @param {object} patch
@@ -219,6 +243,8 @@ function getAllRunHistory(limit = 20) {
 module.exports = {
   createJob,
   getJob,
+  findJobByName,
+  countJobs,
   listJobs,
   listEnabledJobs,
   updateJob,
