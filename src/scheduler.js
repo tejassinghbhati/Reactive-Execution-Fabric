@@ -60,6 +60,7 @@ const log = {
  */
 async function fireJob(job) {
   log.fire(`Firing job: "${job.name}" [${job.id}]`);
+  const startTime = Date.now();
 
   let conditionResult  = 'skipped';
   let agentResponse    = null;
@@ -95,7 +96,7 @@ async function fireJob(job) {
     await notifier.send(job.target, job.target_id, agentResponse);
     delivered = true;
 
-    log.info(`Job "${job.name}" completed successfully.`);
+    log.info(`Job "${job.name}" completed in ${Date.now() - startTime}ms.`);
   } catch (err) {
     errorMsg = err.message;
     log.error(`Job "${job.name}" failed: ${err.message}`);
