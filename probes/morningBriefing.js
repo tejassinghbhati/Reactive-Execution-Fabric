@@ -29,10 +29,15 @@ module.exports = {
     const now  = new Date();
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
+    // ISO week number
+    const startOfYear  = new Date(now.getFullYear(), 0, 1);
+    const weekNumber   = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+
     const data = [
       `Today is ${days[now.getDay()]}, ${now.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
-      `Current time (IST): ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}.`,
-      `This is the automated morning briefing from the Reactive Execution Fabric.`,
+      `ISO week: ${weekNumber} of ${now.getFullYear()}.`,
+      `Current time (IST, UTC+5:30): ${now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })}.`,
+      `Automated morning context injected by the Reactive Execution Fabric.`,
     ].join('\n');
 
     return { shouldFire: true, data };
