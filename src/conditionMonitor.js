@@ -17,6 +17,14 @@ require('dotenv').config();
 const path        = require('path');
 const probeLoader = require('./probeLoader');
 
+// ── Supported condition type prefixes ─────────────────────────────────────────
+const CONDITION_TYPES = Object.freeze({
+  ALWAYS: 'always',
+  PROBE:  'probe:',
+  MEMORY: 'memory:',
+  TIME:   'time:',
+});
+
 // ── Memory Substrate (optional) ───────────────────────────────────────────────
 const SUBSTRATE_PATH = path.resolve(__dirname, '../../../Cogntive Memory Substrate');
 let memoryManager = null;
@@ -51,13 +59,13 @@ async function evaluate(job) {
   const condition = (job.condition || 'always').trim().toLowerCase();
 
   // ── "always" ──────────────────────────────────────────────────────────────
-  if (condition === 'always' || condition === '') {
+  if (condition === CONDITION_TYPES.ALWAYS || condition === '') {
     return { shouldFire: true, context: '' };
   }
 
   // ── "probe:<name>" ────────────────────────────────────────────────────────
-  if (condition.startsWith('probe:')) {
-    const probeName = condition.slice('probe:'.length).trim();
+  if (condition.startsWith(CONDITION_TYPES.PROBE)) {
+    const probeName = condition.slice(CONDITION_TYPES.PROBE.length).trim();
     const probe     = probeLoader.getProbe(probeName);
 
     if (!probe) {
