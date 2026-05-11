@@ -82,4 +82,24 @@ function listProbes() {
   return [...registry.values()].map(p => ({ name: p.name, description: p.description || '' }));
 }
 
-module.exports = { loadProbes, getProbe, listProbes };
+/**
+ * Watch the probes/ directory for file-system changes and trigger an
+ * automatic reload whenever a .js file is added, modified, or removed.
+ *
+ * Returns the fs.FSWatcher so the caller can stop it on shutdown.
+ * @returns {import('fs').FSWatcher|null}
+ */
+function watchProbes() {
+  if (!fs.existsSync(PROBES_DIR)) return null;
+
+  const watcher = fs.watch(PROBES_DIR, (eventType, filename) => {
+    if (!filename || !filename.endsWith('.js')) return;
+    console.log(`[ProbeLoader] Change detected: ${filename} (${eventType}) — reloading probes.`);
+    loadProbes();
+  });
+
+  console.log(`[ProbeLoader] Watching probes/ directory for changes.`);
+  return watcher;
+}
+
+module.exports = { loadProbes, getProbe, listProbes, watchProbes };
