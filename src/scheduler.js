@@ -24,6 +24,7 @@ const jobStore                   = require('./jobStore');
 const { countJobs }              = jobStore;
 const conditionMonitor           = require('./conditionMonitor');
 const notifier                   = require('./notifier');
+const { watchProbes }            = require('./probeLoader');
 
 // ── Agent Execution Pipeline ──────────────────────────────────────────────────
 const AGENT_PATH = path.resolve(__dirname, '../../../Agent Execution Pipeline/src/agent');
@@ -38,6 +39,8 @@ try {
 // ── Internal State ────────────────────────────────────────────────────────────
 /** @type {Map<string, import('node-cron').ScheduledTask>} job.id → cron task */
 const activeTasks = new Map();
+/** @type {import('fs').FSWatcher|null} */
+let probeWatcher = null;
 
 // ── Logger ────────────────────────────────────────────────────────────────────
 const log = {
@@ -172,6 +175,9 @@ function start() {
   }
 
   log.info(`Fabric is alive. ${jobs.length} cron task(s) registered. Waiting for next tick...`);
+
+  // Start filesystem watcher for probe hot-reload
+  probeWatcher = watchProbes();
 }
 
 /**
@@ -203,6 +209,7 @@ async function stop() {
   log.info('Stopping Reactive Execution Fabric...');
   for (const [, task] of activeTasks) task.stop();
   activeTasks.clear();
+  if (probeWatcher) { probeWatcher.close(); probeWatcher = null; }
   await notifier.destroy();
   log.info('Fabric stopped cleanly.');
 }
