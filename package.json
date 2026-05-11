@@ -1,0 +1,30 @@
+{
+  "name": "openclaw-reactive-execution-fabric",
+  "version": "1.0.0",
+  "description": "OpenClaw heartbeat layer — cron scheduler, condition monitor, and proactive messaging engine",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "cli": "node cli.js"
+  },
+  "keywords": [
+    "openclaw",
+    "scheduler",
+    "cron",
+    "proactive-agent",
+    "reactive"
+  ],
+  "author": "Tejas Singh Bhati",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "chalk": "^4.1.2",
+    "commander": "^12.1.0",
+    "discord.js": "^14.26.4",
+    "dotenv": "^16.6.1",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.66.0",
+    "uuid": "^9.0.1"
+  }
+}
