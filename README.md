@@ -1,36 +1,34 @@
-# Reactive Execution Fabric ⚡
+# Reactive Execution Fabric
 
-> **OpenClaw — Project 6 (Final Module)**
-> The heartbeat layer that makes OpenClaw feel alive.
-
-The Reactive Execution Fabric (REF) is a cron-driven, proactive agent scheduler. It runs background jobs on a schedule, evaluates conditions before firing, calls the OpenClaw AI agent to compose intelligent messages, and delivers them to Discord, Telegram, or the console — all without you having to ask.
+**OpenClaw — Module 6**
+A cron-driven scheduling and condition-monitoring layer that enables the OpenClaw agent to operate proactively — running background jobs, evaluating trigger conditions, and delivering synthesized outputs to configured notification channels without explicit user invocation.
 
 ---
 
 ## Architecture
 
 ```
-⏰ Scheduler Core (node-cron)
-    │
-    ▼
-🔍 Condition Monitor        ← evaluates "should this fire?"
-    │
-    ├── probe:<name>         ← hot-loaded probe files
-    ├── memory:<key>         ← Cognitive Memory Substrate
-    ├── time:<HH:MM>         ← time-window check
-    └── always               ← default, always fires
-    │
-    ▼
-🤖 Agent Execution Pipeline ← runAgent(prompt + context)
-    │
-    ▼
-📡 Proactive Notifier
-    ├── Discord
-    ├── Telegram
-    └── Console
-    │
-    ▼
-🗄️  Job Store (SQLite)       ← logs every run
+Scheduler Core (node-cron)
+    |
+    v
+Condition Monitor              -- evaluates whether a job should fire
+    |
+    |-- probe:<name>           -- dynamically loaded probe module
+    |-- memory:<key>           -- query against Cognitive Memory Substrate
+    |-- time:<HH:MM>           -- time-window predicate
+    `-- always                 -- unconditional (default)
+    |
+    v
+Agent Execution Pipeline       -- runAgent(prompt + context)
+    |
+    v
+Proactive Notifier
+    |-- Discord
+    |-- Telegram
+    `-- Console
+    |
+    v
+Job Store (SQLite)             -- persists every execution record
 ```
 
 ---
@@ -44,28 +42,26 @@ cd "Reactive Execution Fabric"
 npm install
 ```
 
-### 2. Configure `.env`
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
 ```
 
-Fill in:
-
 | Variable | Required | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | ✅ | Your Anthropic API key |
-| `NOTIFY_PLATFORM` | ✅ | `console` / `discord` / `telegram` |
+| `ANTHROPIC_API_KEY` | Yes | Anthropic API key |
+| `NOTIFY_PLATFORM` | Yes | `console` / `discord` / `telegram` |
 | `DISCORD_TOKEN` | Discord only | Bot token from Discord Developer Portal |
-| `DISCORD_NOTIFY_CHANNEL_ID` | Discord only | Default channel to post into |
-| `TELEGRAM_TOKEN` | Telegram only | Bot token from @BotFather |
-| `TELEGRAM_NOTIFY_CHAT_ID` | Telegram only | Default chat/group ID |
+| `DISCORD_NOTIFY_CHANNEL_ID` | Discord only | Default channel ID |
+| `TELEGRAM_TOKEN` | Telegram only | Bot token from BotFather |
+| `TELEGRAM_NOTIFY_CHAT_ID` | Telegram only | Default chat or group ID |
 | `GITHUB_TOKEN` | PR probe only | Personal access token |
-| `GITHUB_WATCH_REPO` | PR probe only | `owner/repo` to watch |
+| `GITHUB_WATCH_REPO` | PR probe only | Repository in `owner/repo` format |
 
-### 3. Ensure sibling projects are installed
+### 3. Verify sibling module dependencies
 
-REF integrates with the other OpenClaw modules. Make sure they have their `node_modules`:
+REF integrates directly with other OpenClaw modules. Ensure their dependencies are installed:
 
 ```bash
 cd "../Agent Execution Pipeline" && npm install
@@ -76,85 +72,87 @@ cd "../Cogntive Memory Substrate" && npm install
 
 ## Usage
 
-### Start the Fabric
+### Start the scheduler
 
 ```bash
 node index.js
 ```
 
-The fabric loads all enabled jobs, registers cron schedules, and stays alive.
+The process loads all enabled jobs from the database, registers cron tasks, and runs indefinitely. Send `SIGINT` or `SIGTERM` to trigger graceful shutdown.
 
 ---
 
 ## CLI Reference
 
-### Create a job
+### schedule — Create a job
 
 ```bash
 node cli.js schedule \
   --name "Morning Briefing" \
   --cron "0 8 * * *" \
-  --prompt "Give me a personalized morning briefing with today's date and a motivational thought." \
+  --prompt "Provide a morning briefing including today's date and any outstanding reminders." \
   --condition "probe:morningBriefing" \
   --platform console
 ```
 
-**Options:**
-
 | Flag | Required | Description |
 |---|---|---|
-| `--name` | ✅ | Human-readable job name |
-| `--cron` | ✅ | Cron expression (e.g. `"0 8 * * *"`) |
-| `--prompt` | ✅ | Natural language prompt for the agent |
-| `--condition` | | `always` \| `probe:<name>` \| `memory:<key>` \| `time:<HH:MM>` |
-| `--platform` | | `console` \| `discord` \| `telegram` |
-| `--target-id` | | Per-job channel/chat ID override |
-| `--description` | | Optional description |
+| `--name` | Yes | Human-readable job identifier |
+| `--cron` | Yes | Standard cron expression (e.g. `"0 8 * * *"`) |
+| `--prompt` | Yes | Natural language prompt passed to the agent |
+| `--condition` | No | Condition type (see Condition Types section) |
+| `--platform` | No | Notification target: `console`, `discord`, or `telegram` |
+| `--target-id` | No | Per-job channel or chat ID, overrides environment default |
+| `--description` | No | Optional free-text description |
 
-### List all jobs
+### list — Enumerate jobs
 
 ```bash
 node cli.js list
 node cli.js list --enabled-only
 ```
 
-### Remove a job
+### remove — Delete a job
 
 ```bash
 node cli.js remove <job-id>
 ```
 
-### Enable / Disable a job
+Permanently removes the job record and all associated run history.
+
+### enable / disable — Toggle job state
 
 ```bash
 node cli.js enable <job-id>
 node cli.js disable <job-id>
 ```
 
-### Fire a job manually (bypass cron)
+Disabling a job retains its definition without removing it from the database.
+
+### run — Manual execution
 
 ```bash
 node cli.js run <job-id>
 ```
 
-Useful for testing without waiting for the next cron tick.
+Triggers the full fire sequence immediately, bypassing the cron schedule. Useful for testing and one-off invocations.
 
-### View run history
+### history — Execution log
 
 ```bash
 node cli.js history <job-id>
 node cli.js history <job-id> --limit 20
 ```
 
-### Hot-reload jobs
+### reload — Hot-reload jobs
 
 ```bash
 node cli.js reload
 ```
 
-Re-reads the database and re-registers all cron tasks without restarting the process.
+Re-reads the job database and re-registers all cron tasks without restarting the process.
 
-### List available probes
+### probes — List available probes
 
 ```bash
 node cli.js probes
@@ -164,67 +162,72 @@ node cli.js probes
 
 ## Condition Types
 
-| Condition | Example | Behavior |
+Each job has an optional `condition` field that is evaluated before the agent is invoked. If the condition is not met, the tick is skipped and recorded as such in the run log.
+
+| Condition | Example | Semantics |
 |---|---|---|
-| `always` | `--condition always` | Always fires on every cron tick |
-| `probe:<name>` | `--condition "probe:githubPR"` | Fires only if the probe returns `shouldFire: true` |
-| `memory:<key>` | `--condition "memory:user.reminders"` | Fires if the Cognitive Memory Substrate has a matching fact |
-| `time:<HH:MM>` | `--condition "time:08:00"` | Fires only within ±5 minutes of the target time |
+| `always` | `--condition always` | Fires unconditionally on every scheduled tick |
+| `probe:<name>` | `--condition "probe:githubPR"` | Delegates to the named probe module; fires if `shouldFire === true` |
+| `memory:<key>` | `--condition "memory:user.reminders"` | Fires if the Cognitive Memory Substrate contains a matching fact |
+| `time:<HH:MM>` | `--condition "time:08:00"` | Fires only if the current time falls within a +/- 5-minute window |
 
 ---
 
 ## Built-in Probes
 
-### `morningBriefing`
-Enriches the agent prompt with today's date and time. Always fires.
+### morningBriefing
+
+Injects the current date, day of week, and local time into the agent context. Always returns `shouldFire: true` — the cron expression on the job definition controls frequency.
 
 ```bash
 --condition "probe:morningBriefing"
---prompt "Give me a morning briefing with today's date, a motivational thought, and any reminders I have."
+--prompt "Provide a morning briefing including today's date and any outstanding reminders."
 ```
 
-### `githubPR`
-Polls your watched GitHub repo for newly merged PRs. Fires only when new merges are detected.
+### githubPR
+
+Queries the GitHub REST API for recently merged pull requests on the configured repository. Maintains an in-process baseline and fires only when new merges are detected since the last tick.
 
 ```bash
 --condition "probe:githubPR"
---prompt "Summarize the following newly merged pull requests and highlight what changed."
+--prompt "Summarize the following merged pull requests, noting key changes."
 ```
 
-Requires `GITHUB_WATCH_REPO` and optionally `GITHUB_TOKEN` in `.env`.
+Requires `GITHUB_WATCH_REPO` in `.env`. Set `GITHUB_TOKEN` to avoid API rate limits.
 
-### `reminderCheck`
-Reads `reminder` category facts from the Cognitive Memory Substrate. Fires if any exist.
+### reminderCheck
+
+Queries the `reminder` category in the Cognitive Memory Substrate. Fires if one or more reminder facts are present.
 
 ```bash
 --condition "probe:reminderCheck"
---prompt "Check my stored reminders and tell me what I should be aware of today."
+--prompt "Review my stored reminders and identify any that are relevant to today."
 ```
 
 ---
 
 ## Writing a Custom Probe
 
-Drop a `.js` file into the `probes/` directory. It will be hot-loaded automatically — no restart needed.
+Place a `.js` file in the `probes/` directory. The probe loader performs a hot-reload on each reference — no process restart is required.
 
-**Required exports:**
+**Required module exports:**
 
 ```js
 module.exports = {
-  name: 'myProbe',                    // Must be unique
+  name: 'myProbe',                  // Unique identifier; used in --condition "probe:myProbe"
   description: 'What this probe does',
 
   async run({ job }) {
-    // Your logic here
-    const shouldFire = true;          // boolean
-    const data = 'Context string';    // appended to the agent prompt
+    const shouldFire = true;        // boolean — controls whether the agent is called
+    const data = 'Context string';  // string — appended to the agent prompt if shouldFire is true
 
     return { shouldFire, data };
   },
 };
 ```
 
-**Use the condition:**
+**Referencing in a job:**
+
 ```bash
 --condition "probe:myProbe"
 ```
@@ -233,33 +236,36 @@ module.exports = {
 
 ## Example Jobs
 
-### Daily morning briefing at 8am
+### Daily morning briefing
+
 ```bash
 node cli.js schedule \
   --name "Morning Briefing" \
   --cron "0 8 * * *" \
-  --prompt "Give me a personalized morning briefing." \
+  --prompt "Provide a personalized morning briefing." \
   --condition "probe:morningBriefing" \
   --platform telegram
 ```
 
-### GitHub PR watcher (every 15 minutes)
+### GitHub pull request monitor
+
 ```bash
 node cli.js schedule \
-  --name "PR Watcher" \
+  --name "PR Monitor" \
   --cron "*/15 * * * *" \
-  --prompt "Summarize the following merged PRs." \
+  --prompt "Summarize the following merged pull requests." \
   --condition "probe:githubPR" \
   --platform discord \
   --target-id "YOUR_CHANNEL_ID"
 ```
 
-### Test job (fires every minute, console only)
+### Scheduler health check
+
 ```bash
 node cli.js schedule \
-  --name "Test Ping" \
+  --name "Health Check" \
   --cron "* * * * *" \
-  --prompt "Say hello and confirm that the Reactive Execution Fabric is running correctly." \
+  --prompt "Confirm that the Reactive Execution Fabric is operational." \
   --platform console
 ```
 
@@ -267,12 +273,12 @@ node cli.js schedule \
 
 ## Integration Map
 
-| Module | How REF uses it |
+| Module | Integration Point |
 |---|---|
-| **Agent Execution Pipeline** | `runAgent(prompt)` — called on every fire to compose the outbound message |
-| **Cognitive Memory Substrate** | `recall()` / `injectContext()` — personalizes prompts; `memory:` conditions read from it |
-| **Runtime Extension Engine** | Probe loading pattern — same hot-reload / cache-busting technique |
-| **Multi-Platform Messaging Bot** | Discord.js + node-telegram-bot-api SDKs reused in `notifier.js` for outbound delivery |
+| Agent Execution Pipeline | `runAgent(prompt, sessionId)` — invoked on each qualifying tick to compose the outbound message |
+| Cognitive Memory Substrate | `recall()` and `injectContext()` — used by the condition monitor and agent prompt enrichment |
+| Runtime Extension Engine | Probe loading pattern adopted verbatim — same hot-reload and require-cache-busting mechanism |
+| Multi-Platform Messaging Bot | `discord.js` and `node-telegram-bot-api` SDKs reused in `notifier.js` for outbound-only message delivery |
 
 ---
 
@@ -280,26 +286,27 @@ node cli.js schedule \
 
 ```
 Reactive Execution Fabric/
-├── index.js                    # Entry point — starts the fabric
-├── cli.js                      # Job management CLI
+├── index.js                    # Entry point; starts the scheduler process
+├── cli.js                      # Command-line interface for job management
 ├── package.json
 ├── .env.example
 ├── .gitignore
 ├── README.md
 ├── data/
-│   └── ref.db                  # SQLite job store (auto-created)
-├── probes/                     # Hot-loadable condition probes
+│   └── ref.db                  # SQLite job store (created automatically on first run)
+├── probes/                     # Hot-loadable condition probe modules
 │   ├── morningBriefing.js
 │   ├── githubPR.js
 │   └── reminderCheck.js
 └── src/
-    ├── jobStore.js             # SQLite persistence for jobs & runs
-    ├── conditionMonitor.js     # Evaluates whether a job should fire
-    ├── scheduler.js            # Cron engine & orchestration loop
+    ├── jobStore.js             # SQLite persistence layer for jobs and run records
+    ├── conditionMonitor.js     # Condition evaluation engine
+    ├── scheduler.js            # Cron registration and fire-sequence orchestration
     ├── notifier.js             # Outbound message dispatch
-    └── probeLoader.js          # Hot-loads probe files from probes/
+    └── probeLoader.js          # Dynamic probe module loader
 ```
 
 ---
 
-*Built by Tejas Singh Bhati — OpenClaw Project 6*
+*Reactive Execution Fabric — OpenClaw Module 6*
+*Author: Tejas Singh Bhati*
