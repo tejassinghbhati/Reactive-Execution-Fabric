@@ -14,6 +14,7 @@
  *   history    Show execution history for a job
  *   reload     Hot-reload all jobs (signal running fabric process)
  *   probes     List all available probes
+ *   stats      Show aggregate job and run statistics
  */
 
 require('dotenv').config();
@@ -210,6 +211,37 @@ program
       console.log(`  ${chalk.gray(p.description || '(no description)')}`);
       console.log(`  Usage: ${chalk.yellow(`--condition "probe:${p.name}"`)}\n`);
     }
+  });
+
+// ── stats ─────────────────────────────────────────────────────────────────────
+program
+  .command('stats')
+  .description('Show aggregate job and run statistics')
+  .action(() => {
+    const counts = jobStore.countJobs();
+    const recent = jobStore.getAllRunHistory(5);
+
+    console.log(chalk.bold.cyan(`\n${'═'.repeat(60)}`));
+    console.log(chalk.bold.cyan('  Reactive Execution Fabric — Statistics'));
+    console.log(chalk.bold.cyan(`${'═'.repeat(60)}\n`));
+
+    console.log(`  ${chalk.bold('Jobs total:')}    ${counts.total}`);
+    console.log(`  ${chalk.bold('Jobs enabled:')}  ${chalk.green(counts.enabled)}`);
+    console.log(`  ${chalk.bold('Jobs disabled:')} ${chalk.red(counts.disabled)}`);
+
+    console.log(`\n  ${chalk.bold('Recent runs (last 5):')}`);
+    if (recent.length === 0) {
+      console.log(chalk.gray('  No runs recorded yet.'));
+    } else {
+      for (const r of recent) {
+        const job    = jobStore.getJob(r.job_id);
+        const name   = job ? job.name : chalk.gray('[deleted]');
+        const status = r.error ? chalk.red('error') : r.delivered ? chalk.green('ok') : chalk.yellow('skipped');
+        console.log(`  ${fmtDate(r.fired_at)}  ${name}  ${status}`);
+      }
+    }
+
+    console.log();
   });
 
 program.parse(process.argv);
